@@ -9,17 +9,16 @@ import {
   FormPath,
   FormPathPattern,
   each,
-  isObj
+  isObj,
+  scheduler
 } from '@uform/shared'
 import {
   FormValidator,
   setValidationLanguage,
-  setValidationLocale,
-  ValidateFieldOptions
+  setValidationLocale
 } from '@uform/validator'
 import { FormHeart } from './shared/lifecycle'
 import { FormGraph } from './shared/graph'
-import { scheduler } from './shared/scheduler'
 import { FormState } from './state/form'
 import { VirtualFieldState } from './state/virtual-field'
 import { FieldState } from './state/field'
@@ -42,7 +41,8 @@ import {
   isVirtualField,
   isFormState,
   isFieldState,
-  isVirtualFieldState
+  isVirtualFieldState,
+  IFormExtendedValidateFieldOptions
 } from './types'
 export * from './shared/lifecycle'
 export * from './types'
@@ -54,6 +54,55 @@ export function createForm<FieldProps, VirtualFieldProps>(
     heart.publish(LifeCycleTypes.ON_FORM_GRAPH_CHANGE, graph)
     if (type === 'GRAPH_NODE_WILL_UNMOUNT') {
       validator.unregister(payload.path.toString())
+    }
+  }
+
+  function syncFieldValues(state: IFieldState) {
+    const dataPath = FormPath.parse(state.name)
+    const parent = graph.getLatestParent(state.path)
+    const parentValue = getFormValuesIn(parent.path)
+    const value = getFormValuesIn(state.name)
+    /**
+     * https://github.com/alibaba/uform/issues/267 dynamic remove node
+     */
+    let removed = false
+    if (isArr(parentValue) && !dataPath.existIn(parentValue, parent.path)) {
+      if (
+        !parent.path
+          .getNearestChildPathBy(state.path)
+          .existIn(parentValue, parent.path)
+      ) {
+        graph.remove(state.path)
+        removed = true
+      }
+    } else {
+      each(env.removeNodes, (_, name) => {
+        if (dataPath.includes(name)) {
+          graph.remove(state.path)
+          delete env.removeNodes[name]
+          removed = true
+        }
+      })
+    }
+    if (removed) return
+    if (!isEqual(value, state.value)) {
+      state.value = value
+    }
+  }
+
+  function syncFieldIntialValues(state: IFieldState) {
+    const initialValue = getFormInitialValuesIn(state.name)
+    if (!isEqual(initialValue, state.initialValue)) {
+      state.initialValue = initialValue
+      if (!isValid(state.value)) {
+        state.value = initialValue
+      } else if (
+        /array/gi.test(state.dataType) &&
+        state.value &&
+        state.value.length === 0
+      ) {
+        state.value = initialValue
+      }
     }
   }
 
@@ -69,50 +118,24 @@ export function createForm<FieldProps, VirtualFieldProps>(
       const updateFields = (field: IField | IVirtualField) => {
         if (isField(field)) {
           field.setState(state => {
-            if (state.visible) {
+            if (state.visible || state.unmounted) {
               if (valuesChanged) {
-                const dataPath = FormPath.parse(state.name)
-                const parent = graph.getLatestParent(state.path)
-                const parentValue = getFormValuesIn(parent.path)
-                const value = getFormValuesIn(state.name)
-                /**
-                 * https://github.com/alibaba/uform/issues/267 dynamic remove node
-                 */
-                let removed = false
-                if (
-                  isArr(parentValue) &&
-                  !dataPath.existIn(parentValue, parent.path)
-                ) {
-                  if (
-                    !parent.path
-                      .getNearestChildPathBy(state.path)
-                      .existIn(parentValue, parent.path)
-                  ) {
-                    graph.remove(state.path)
-                    removed = true
-                  }
-                } else {
-                  each(env.removeNodes, (_, name) => {
-                    if (dataPath.includes(name)) {
-                      graph.remove(state.path)
-                      delete env.removeNodes[name]
-                      removed = true
-                    }
-                  })
-                }
-                if (removed) return
-                if (!isEqual(value, state.value)) {
-                  state.value = value
-                }
+                syncFieldValues(state)
               }
               if (initialValuesChanged) {
-                const initialValue = getFormInitialValuesIn(state.name)
-                if (!isEqual(initialValue, state.initialValue)) {
-                  state.initialValue = initialValue
-                  if (!isValid(state.value)) {
-                    state.value = initialValue
-                  }
-                }
+                syncFieldIntialValues(state)
+              }
+            } else {
+              //缓存变化，等字段重新显示的时候再执行
+              if (valuesChanged) {
+                env.hiddenPendingFields[state.name] =
+                  env.hiddenPendingFields[state.name] || {}
+                env.hiddenPendingFields[state.name].values = true
+              }
+              if (initialValuesChanged) {
+                env.hiddenPendingFields[state.name] =
+                  env.hiddenPendingFields[state.name] || {}
+                env.hiddenPendingFields[state.name].initialValues = true
               }
             }
           })
@@ -157,7 +180,6 @@ export function createForm<FieldProps, VirtualFieldProps>(
         }
       })
     }
-
     if (unmountedChanged && published.unmounted) {
       heart.publish(LifeCycleTypes.ON_FORM_UNMOUNT, state)
     }
@@ -166,6 +188,35 @@ export function createForm<FieldProps, VirtualFieldProps>(
     }
     if (initializedChanged) {
       heart.publish(LifeCycleTypes.ON_FORM_INIT, state)
+    }
+  }
+
+  function updateRecoverableShownState(
+    parentState:
+      | IVirtualFieldState<VirtualFieldProps>
+      | IFieldState<FieldProps>,
+    childState: IVirtualFieldState<VirtualFieldProps> | IFieldState<FieldProps>,
+    name: 'visible' | 'display'
+  ) {
+    const lastShownState = env.lastShownStates[childState.path]
+    const lastStateValue = childState[name]
+    if (parentState[name] && lastShownState && lastShownState[name] === false) {
+      childState[name] = false
+      delete lastShownState[name]
+      if (
+        !lastShownState.hasOwnProperty('visible') &&
+        !lastShownState.hasOwnProperty('display')
+      ) {
+        delete env.lastShownStates[childState.path]
+      }
+    } else {
+      childState[name] = parentState[name]
+    }
+    if (!parentState[name] && !lastStateValue) {
+      if (!lastShownState) {
+        env.lastShownStates[childState.path] = {}
+      }
+      env.lastShownStates[childState.path][name] = false
     }
   }
 
@@ -179,72 +230,109 @@ export function createForm<FieldProps, VirtualFieldProps>(
       const mountedChanged = field.isDirty('mounted')
       const initializedChanged = field.isDirty('initialized')
       const warningsChanged = field.isDirty('warnings')
-      const errorsChanges = field.isDirty('errors')
+      const errorsChanged = field.isDirty('errors')
       const userUpdateFieldPath =
         env.userUpdateFields[env.userUpdateFields.length - 1]
+
+      const syncField = () => {
+        if (env.hiddenPendingFields[published.name]) {
+          field.setState((state: IFieldState) => {
+            if (env.hiddenPendingFields[state.name].values) {
+              syncFieldValues(state)
+            }
+            if (env.hiddenPendingFields[state.name].initialValues) {
+              syncFieldIntialValues(state)
+            }
+            delete env.hiddenPendingFields[state.name]
+          })
+        }
+      }
+
+      const notifyFormValuesChange = () => {
+        if (isFn(options.onChange)) {
+          options.onChange(state.getSourceState(state => clone(state.values)))
+        }
+        heart.publish(LifeCycleTypes.ON_FORM_VALUES_CHANGE, state)
+      }
+
       if (initializedChanged) {
         heart.publish(LifeCycleTypes.ON_FIELD_INIT, field)
         const isEmptyValue = !isValid(published.value)
         const isEmptyInitialValue = !isValid(published.initialValue)
         if (isEmptyValue || isEmptyInitialValue) {
-          field.setState((state: IFieldState<FieldProps>) => {
+          field.setSourceState((state: IFieldState<FieldProps>) => {
             if (isEmptyValue) state.value = getFormValuesIn(state.name)
             if (isEmptyInitialValue)
               state.initialValue = getFormInitialValuesIn(state.name)
-          }, true)
+          })
         }
+      }
+      const wasHidden =
+        published.visible == false || published.unmounted === true
+      if (valueChanged) {
+        if (!wasHidden) {
+          userUpdating(field, () => {
+            setFormValuesIn(path, published.value)
+          })
+        }
+        heart.publish(LifeCycleTypes.ON_FIELD_VALUE_CHANGE, field)
+      }
+      if (initialValueChanged) {
+        if (!wasHidden) {
+          setFormInitialValuesIn(path, published.initialValue)
+        }
+        heart.publish(LifeCycleTypes.ON_FIELD_INITIAL_VALUE_CHANGE, field)
       }
       if (displayChanged || visibleChanged) {
         if (visibleChanged) {
-          if (!published.visible) {
-            deleteFormValuesIn(path, true)
-          } else {
-            setFormValuesIn(path, published.value)
-          }
+          userUpdating(field, () => {
+            if (!published.visible) {
+              deleteFormValuesIn(path, true)
+              //考虑到隐藏删值，不应该同步子树，但是需要触发表单变化事件
+              notifyFormValuesChange()
+            } else {
+              setFormValuesIn(path, published.value)
+              syncField()
+            }
+          })
         }
-        graph.eachChildren(
-          path,
-          childState => {
-            childState.setState((state: IFieldState<FieldProps>) => {
-              if (visibleChanged) {
-                state.visible = published.visible
-              }
-              if (displayChanged) {
-                state.display = published.display
-              }
-            }, true)
-          },
-          false
-        )
+        graph.eachChildren(path, childState => {
+          childState.setState((state: IFieldState<FieldProps>) => {
+            if (visibleChanged) {
+              updateRecoverableShownState(published, state, 'visible')
+            }
+            if (displayChanged) {
+              updateRecoverableShownState(published, state, 'display')
+            }
+          }, true)
+        })
       }
       if (
         unmountedChanged &&
         (published.display !== false || published.visible === false)
       ) {
-        if (published.unmounted) {
-          deleteFormValuesIn(path, true)
-        } else {
-          setFormValuesIn(path, published.value)
-        }
+        userUpdating(field, () => {
+          if (published.unmounted) {
+            deleteFormValuesIn(path, true)
+            //考虑到隐藏删值，不应该同步子树，但是需要触发表单变化事件
+            notifyFormValuesChange()
+          } else {
+            setFormValuesIn(path, published.value)
+            syncField()
+          }
+        })
+        heart.publish(LifeCycleTypes.ON_FIELD_UNMOUNT, field)
       }
       if (mountedChanged && published.mounted) {
         heart.publish(LifeCycleTypes.ON_FIELD_MOUNT, field)
       }
-      if (valueChanged) {
-        setFormValuesIn(path, published.value)
-        heart.publish(LifeCycleTypes.ON_FIELD_VALUE_CHANGE, field)
-      }
-      if (initialValueChanged) {
-        setFormInitialValuesIn(path, published.initialValue)
-        heart.publish(LifeCycleTypes.ON_FIELD_INITIAL_VALUE_CHANGE, field)
-      }
 
-      if (errorsChanges) {
-        syncFormMessages('errors', published.name, published.errors)
+      if (errorsChanged) {
+        syncFormMessages('errors', published)
       }
 
       if (warningsChanged) {
-        syncFormMessages('warnings', published.name, published.warnings)
+        syncFormMessages('warnings', published)
       }
       heart.publish(LifeCycleTypes.ON_FIELD_CHANGE, field)
       if (userUpdateFieldPath && !env.leadingStage) {
@@ -263,9 +351,9 @@ export function createForm<FieldProps, VirtualFieldProps>(
       const visibleChanged = field.isDirty('visible')
       const displayChanged = field.isDirty('display')
       const mountedChanged = field.isDirty('mounted')
-      const initializedChnaged = field.isDirty('initialized')
+      const initializedChanged = field.isDirty('initialized')
 
-      if (initializedChnaged) {
+      if (initializedChanged) {
         heart.publish(LifeCycleTypes.ON_FIELD_INIT, field)
       }
 
@@ -274,10 +362,10 @@ export function createForm<FieldProps, VirtualFieldProps>(
           childState.setState(
             (state: IVirtualFieldState<VirtualFieldProps>) => {
               if (visibleChanged) {
-                state.visible = published.visible
+                updateRecoverableShownState(published, state, 'visible')
               }
               if (displayChanged) {
-                state.display = published.display
+                updateRecoverableShownState(published, state, 'display')
               }
             },
             true
@@ -338,7 +426,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
     }
     if (graph.exist(nodePath)) {
       field = graph.get(nodePath)
-      field = createField(field)
+      //field = createField(field) 如果重置会导致#565的问题，目前还没想清楚不重置会有啥问题
       if (isField(field)) {
         graph.replace(nodePath, field)
       }
@@ -359,6 +447,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
     visible,
     display,
     computeState,
+    dataType,
     useDirty,
     props
   }: Exclude<IFieldStateProps, 'dataPath' | 'nodePath'>): IField {
@@ -373,6 +462,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
           nodePath,
           dataPath,
           computeState,
+          dataType,
           useDirty: isValid(useDirty) ? useDirty : options.useDirty
         })
       field.subscription = {
@@ -386,12 +476,11 @@ export function createForm<FieldProps, VirtualFieldProps>(
         field.setState((state: IFieldState<FieldProps>) => {
           const formValue = getFormValuesIn(dataPath)
           const formInitialValue = getFormInitialValuesIn(dataPath)
-          state.initialized = true
           if (isValid(value)) {
             // value > formValue > initialValue
             state.value = value
           } else {
-            state.value = isValid(formValue) ? formValue : initialValue
+            state.value = existFormValuesIn(dataPath) ? formValue : initialValue
           }
           // initialValue > formInitialValue
           state.initialValue = isValid(initialValue)
@@ -403,11 +492,22 @@ export function createForm<FieldProps, VirtualFieldProps>(
           if (isValid(display)) {
             state.display = display
           }
-          state.props = props
-          state.required = required
-          state.rules = rules as any
-          state.selfEditable = editable
-          state.formEditable = options.editable
+          if (isValid(props)) {
+            state.props = props
+          }
+          if (isValid(required)) {
+            state.required = required
+          }
+          if (isValid(rules)) {
+            state.rules = rules
+          }
+          if (isValid(editable)) {
+            state.selfEditable = editable
+          }
+          if (isValid(options.editable)) {
+            state.formEditable = options.editable
+          }
+          state.initialized = true
         })
         batchRunTaskQueue(field, nodePath)
       })
@@ -434,6 +534,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
             state.validating = true
           })
         }, 60)
+        heart.publish(LifeCycleTypes.ON_FIELD_VALIDATE_START, field)
         return validate(value, rules).then(({ errors, warnings }) => {
           clearTimeout((field as any).validateTimer)
           return new Promise(resolve => {
@@ -443,6 +544,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
                 state.ruleErrors = errors
                 state.ruleWarnings = warnings
               })
+              heart.publish(LifeCycleTypes.ON_FIELD_VALIDATE_END, field)
               resolve({ errors, warnings })
             }
             if (graph.size < 100) {
@@ -457,7 +559,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
     }
     if (graph.exist(nodePath)) {
       field = graph.get(nodePath)
-      field = createField(field)
+      //field = createField(field) 如果重置会导致#565的问题，目前还没想清楚不重置会有啥问题
       if (isVirtualField(field)) {
         graph.replace(nodePath, field)
       }
@@ -468,8 +570,10 @@ export function createForm<FieldProps, VirtualFieldProps>(
   }
 
   //实时同步Form Messages
-  function syncFormMessages(type: string, path: string, messages: string[]) {
-    state.unsafe_setSourceState(state => {
+  function syncFormMessages(type: string, fieldState: IFieldState) {
+    const { name, path } = fieldState
+    const messages = fieldState[type]
+    state.setSourceState(state => {
       let foundField = false
       state[type] = state[type] || []
       state[type] = state[type].reduce((buf: any, item: any) => {
@@ -482,6 +586,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
       }, [])
       if (!foundField && messages.length) {
         state[type].push({
+          name,
           path,
           messages
         })
@@ -499,9 +604,9 @@ export function createForm<FieldProps, VirtualFieldProps>(
   function transformDataPath(path: FormPathPattern) {
     const newPath = FormPath.getPath(path)
     return newPath.reduce((path: FormPath, key: string, index: number) => {
-      if (index >= newPath.length - 1) return path.concat(key)
+      if (index >= newPath.length - 1) return path.concat([key])
       const realPath = newPath.slice(0, index + 1)
-      const dataPath = path.concat(key)
+      const dataPath = path.concat([key])
       const selected = graph.get(realPath)
       if (isVirtualField(selected)) {
         return path
@@ -557,29 +662,33 @@ export function createForm<FieldProps, VirtualFieldProps>(
     return getFormIn(path, 'values')
   }
 
+  function existFormValuesIn(path: FormPathPattern) {
+    return state.getState(state =>
+      FormPath.existIn(state.values, transformDataPath(path))
+    )
+  }
+
   function getFormInitialValuesIn(path: FormPathPattern) {
     return getFormIn(path, 'initialValues')
   }
 
   function createMutators(field: IField) {
-    if (!(field instanceof FieldState)) {
+    if (!isField(field)) {
       throw new Error(
         'The `createMutators` can only accept FieldState instance.'
       )
     }
     function setValue(...values: any[]) {
-      userUpdating(field, () => {
-        field.setState((state: IFieldState<FieldProps>) => {
-          state.value = values[0]
-          state.values = values
-        })
+      field.setState((state: IFieldState<FieldProps>) => {
+        state.value = values[0]
+        state.values = values
       })
       heart.publish(LifeCycleTypes.ON_FIELD_INPUT_CHANGE, field)
       heart.publish(LifeCycleTypes.ON_FORM_INPUT_CHANGE, state)
     }
 
     function removeValue(key: string | number) {
-      const nodePath = field.unsafe_getSourceState(state => state.path)
+      const nodePath = field.getSourceState(state => state.path)
       if (isValid(key)) {
         const childNodePath = FormPath.parse(nodePath).concat(key)
         env.userUpdateFields.push(nodePath)
@@ -591,7 +700,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
         const parent = graph.selectParent(nodePath)
         env.removeNodes[nodePath.toString()] = true
         const parentNodePath =
-          parent && parent.unsafe_getSourceState(state => state.path)
+          parent && parent.getSourceState(state => state.path)
         if (parentNodePath) {
           env.userUpdateFields.push(parentNodePath)
         } else {
@@ -606,11 +715,10 @@ export function createForm<FieldProps, VirtualFieldProps>(
       heart.publish(LifeCycleTypes.ON_FIELD_VALUE_CHANGE, field)
       heart.publish(LifeCycleTypes.ON_FIELD_INPUT_CHANGE, field)
       heart.publish(LifeCycleTypes.ON_FORM_INPUT_CHANGE, state)
-      heart.publish(LifeCycleTypes.ON_FIELD_CHANGE, field)
     }
 
     function getValue() {
-      return field.unsafe_getSourceState(state => state.value)
+      return field.getSourceState(state => state.value)
     }
     return {
       change(...values: any[]) {
@@ -657,11 +765,11 @@ export function createForm<FieldProps, VirtualFieldProps>(
         }
       },
       exist(index?: number | string) {
-        const newPath = field.unsafe_getSourceState(state =>
+        const newPath = field.getSourceState(state =>
           FormPath.parse(state.path)
         )
         let val = getValue()
-        return (index !== undefined ? newPath.concat(index) : newPath).existIn(
+        return (isValid(index) ? newPath.concat(index) : newPath).existIn(
           val,
           newPath
         )
@@ -704,8 +812,11 @@ export function createForm<FieldProps, VirtualFieldProps>(
         setValue(arr)
         return arr
       },
-      validate() {
-        return validate(field.unsafe_getSourceState(state => state.path))
+      validate(opts?: IFormExtendedValidateFieldOptions) {
+        return validate(
+          field.getSourceState(state => state.path),
+          opts
+        )
       }
     }
   }
@@ -727,9 +838,9 @@ export function createForm<FieldProps, VirtualFieldProps>(
   async function reset({
     selector = '*',
     forceClear = false,
-    validate = true
+    validate = true,
+    clearInitialValue = false
   }: IFormResetOptions = {}): Promise<void | IFormValidateResult> {
-    let result: Promise<void | IFormValidateResult>
     graph.eachChildren('', selector, field => {
       field.setState((state: IFieldState<FieldProps>) => {
         state.modified = false
@@ -737,6 +848,9 @@ export function createForm<FieldProps, VirtualFieldProps>(
         state.ruleWarnings = []
         state.effectErrors = []
         state.effectWarnings = []
+        if (clearInitialValue) {
+          state.initialValue = undefined
+        }
         // forceClear仅对设置initialValues的情况下有意义
         if (forceClear || !isValid(state.initialValue)) {
           if (isArr(state.value)) {
@@ -767,11 +881,13 @@ export function createForm<FieldProps, VirtualFieldProps>(
     if (isFn(options.onReset)) {
       options.onReset()
     }
+    heart.publish(LifeCycleTypes.ON_FORM_RESET, state)
+    let validateResult: void | IFormValidateResult
     if (validate) {
-      result = formApi.validate()
+      validateResult = await formApi.validate(selector, { throwErrors: false })
     }
 
-    return result
+    return validateResult
   }
 
   async function submit(
@@ -784,55 +900,71 @@ export function createForm<FieldProps, VirtualFieldProps>(
     state.setState(state => {
       state.submitting = true
     })
-    env.submittingTask = validate()
-      .then(() => {
-        const validated = state.getState(({ errors, warnings }) => ({
-          errors,
-          warnings
-        })) //因为要合并effectErrors/effectWarnings，所以不能直接读validate的结果
-        if (validated.errors.length) {
-          state.setState(state => {
-            state.submitting = false
-          })
-          heart.publish(LifeCycleTypes.ON_FORM_SUBMIT_END, state)
-          if (isFn(options.onValidateFailed)) {
-            options.onValidateFailed(validated)
-          }
-          return Promise.reject(validated.errors)
-        }
-        if (isFn(onSubmit)) {
-          return Promise.resolve(
-            onSubmit(state.getState(state => clone(state.values)))
-          ).then(payload => ({ validated, payload }))
-        }
-        return { validated, payload: undefined }
-      })
-      .then<IFormSubmitResult>(response => {
-        const {
-          validated: { errors, warnings }
-        } = response
+
+    env.submittingTask = async () => {
+      // 增加onFormSubmitValidateStart来明确submit引起的校验开始了
+      heart.publish(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_START, state)
+      await validate('', { throwErrors: false })
+      const validated: IFormValidateResult = state.getState(state => ({
+        errors: state.errors,
+        warnings: state.warnings
+      }))
+      const { errors } = validated
+      // 校验失败
+      if (errors.length) {
+        // 由于校验失败导致submit退出
         state.setState(state => {
           state.submitting = false
         })
 
+        // 增加onFormSubmitValidateFailed来明确结束submit的类型
+        heart.publish(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_FAILED, state)
         heart.publish(LifeCycleTypes.ON_FORM_SUBMIT_END, state)
-        if (errors.length) {
-          return Promise.reject(errors)
+        if (isFn(options.onValidateFailed)) {
+          options.onValidateFailed(validated)
         }
-        if (warnings.length) {
-          console.warn(warnings)
+
+        throw errors
+      }
+
+      // 增加onFormSubmitValidateSucces来明确submit引起的校验最终的结果
+      heart.publish(LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_SUCCESS, state)
+
+      heart.publish(LifeCycleTypes.ON_FORM_SUBMIT, state)
+
+      let payload,
+        values = state.getState(state => clone(state.values))
+      if (isFn(onSubmit)) {
+        try {
+          payload = await Promise.resolve(onSubmit(values))
+        } catch (e) {
+          new Promise(() => {
+            throw e
+          })
         }
-        return response
+      }
+
+      state.setState(state => {
+        state.submitting = false
       })
-    return env.submittingTask
+      heart.publish(LifeCycleTypes.ON_FORM_SUBMIT_END, state)
+      return {
+        values,
+        validated,
+        payload
+      }
+    }
+
+    return env.submittingTask()
   }
 
   async function validate(
     path?: FormPathPattern,
-    opts?: ValidateFieldOptions
+    opts?: IFormExtendedValidateFieldOptions
   ): Promise<IFormValidateResult> {
+    const { throwErrors = true } = opts || {}
     if (!state.getState(state => state.validating)) {
-      state.unsafe_setSourceState(state => {
+      state.setSourceState(state => {
         state.validating = true
       })
       // 渲染优化
@@ -843,14 +975,40 @@ export function createForm<FieldProps, VirtualFieldProps>(
     }
 
     heart.publish(LifeCycleTypes.ON_FORM_VALIDATE_START, state)
-    return validator.validate(path, opts).then(payload => {
-      clearTimeout(env.validateTimer)
-      state.setState(state => {
-        state.validating = false
-      })
-      heart.publish(LifeCycleTypes.ON_FORM_VALIDATE_END, state)
-      return payload
+    const payload = await validator.validate(path, opts)
+    clearTimeout(env.validateTimer)
+    state.setState(state => {
+      state.validating = false
     })
+    heart.publish(LifeCycleTypes.ON_FORM_VALIDATE_END, state)
+
+    // 增加name透出真实路径，和0.x保持一致
+    const result = {
+      errors: payload.errors.map(item => ({
+        ...item,
+        name: getFieldState(item.path).name
+      })),
+      warnings: payload.warnings.map(item => ({
+        ...item,
+        name: getFieldState(item.path).name
+      }))
+    }
+
+    const { errors, warnings } = result
+
+    // 打印warnings日志从submit挪到这里
+    if (warnings.length) {
+      console.warn(warnings)
+    }
+    if (errors.length > 0) {
+      if (throwErrors) {
+        throw result
+      } else {
+        return result
+      }
+    } else {
+      return result
+    }
   }
 
   function setFormState(
@@ -870,24 +1028,24 @@ export function createForm<FieldProps, VirtualFieldProps>(
     field: IField | IVirtualField,
     nodePath: FormPath
   ) {
-    env.taskQueue.forEach((task, index) => {
-      const { pattern, callbacks } = task
+    for (let index = 0; index < env.taskQueue.length; index++) {
+      const { pattern, callbacks } = env.taskQueue[index]
+      let removed = false
       if (matchStrategy(pattern, nodePath)) {
         callbacks.forEach(callback => {
-          userUpdating(field, () => {
-            field.setState(callback)
-          })
+          field.setState(callback)
         })
         if (!pattern.isWildMatchPattern && !pattern.isMatchPattern) {
-          env.taskQueue.splice(index, 1)
-          env.taskQueue.forEach(({ pattern }, index) => {
-            if (pattern.toString() === nodePath.toString()) {
-              env.taskIndexes[nodePath.toString()] = index
-            }
-          })
+          env.taskQueue.splice(index--, 1)
+          removed = true
         }
       }
-    })
+      if (!removed) {
+        env.taskIndexes[pattern.toString()] = index
+      } else {
+        delete env.taskIndexes[pattern.toString()]
+      }
+    }
   }
 
   function setFieldState(
@@ -899,9 +1057,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
     let matchCount = 0
     let pattern = FormPath.getPath(path)
     graph.select(pattern, field => {
-      userUpdating(field, () => {
-        field.setState(callback, silent)
-      })
+      field.setState(callback, silent)
       matchCount++
     })
     if (matchCount === 0 || pattern.isWildMatchPattern) {
@@ -925,11 +1081,8 @@ export function createForm<FieldProps, VirtualFieldProps>(
 
   function userUpdating(field: IField | IVirtualField, fn?: () => void) {
     if (!field) return
-    const nodePath = field.unsafe_getSourceState(state => state.path)
-    if (nodePath)
-      env.userUpdateFields.push(
-        field.unsafe_getSourceState(state => state.path)
-      )
+    const nodePath = field.state.path
+    if (nodePath) env.userUpdateFields.push(nodePath)
     if (isFn(fn)) {
       fn()
     }
@@ -996,7 +1149,7 @@ export function createForm<FieldProps, VirtualFieldProps>(
         let nodeState: any
         if (graph.exist(key)) {
           nodeState = graph.get(key)
-          nodeState.unsafe_setSourceState(state => {
+          nodeState.setSourceState(state => {
             Object.assign(state, node)
           })
         } else {
@@ -1004,14 +1157,14 @@ export function createForm<FieldProps, VirtualFieldProps>(
             nodeState = registerVirtualField({
               path: key
             })
-            nodeState.unsafe_setSourceState(state => {
+            nodeState.setSourceState(state => {
               Object.assign(state, node)
             })
           } else if (node.displayName === 'FieldState') {
             nodeState = registerField({
               path: key
             })
-            nodeState.unsafe_setSourceState(state => {
+            nodeState.setSourceState(state => {
               Object.assign(state, node)
             })
           }
@@ -1027,14 +1180,14 @@ export function createForm<FieldProps, VirtualFieldProps>(
     const matchPattern = FormPath.parse(pattern)
     const node = graph.get(nodePath)
     if (!node) return false
-    return node.unsafe_getSourceState(
-      state => matchPattern.match(state.name) || matchPattern.match(state.path)
+    return node.getSourceState(state =>
+      matchPattern.matchAliasGroup(state.name, state.path)
     )
   }
 
   //在subscribe中必须同步使用，否则会监听不到变化
   function hasChanged(target: any, path: FormPathPattern): boolean {
-    if (!env.publishing) {
+    if (env.publishing[target ? target.path : ''] === false) {
       throw new Error(
         'The watch function must be used synchronously in the subscribe callback.'
       )
@@ -1093,22 +1246,24 @@ export function createForm<FieldProps, VirtualFieldProps>(
   const heart = new FormHeart({
     ...options,
     context: formApi,
-    beforeNotify: () => {
-      env.publishing = true
+    beforeNotify: payload => {
+      env.publishing[payload.path || ''] = true
     },
-    afterNotify: () => {
-      env.publishing = false
+    afterNotify: payload => {
+      env.publishing[payload.path || ''] = false
     }
   })
   const env = {
     validateTimer: null,
     graphChangeTimer: null,
     leadingStage: false,
-    publishing: false,
+    publishing: {},
     taskQueue: [],
     userUpdateFields: [],
     taskIndexes: {},
     removeNodes: {},
+    hiddenPendingFields: {},
+    lastShownStates: {},
     submittingTask: undefined
   }
   heart.publish(LifeCycleTypes.ON_FORM_WILL_INIT, state)

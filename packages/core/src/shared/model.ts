@@ -6,7 +6,9 @@ import {
   globalThisPolyfill,
   Subscribable,
   FormPath,
-  FormPathPattern
+  FormPathPattern,
+  isValid,
+  toArr
 } from '@uform/shared'
 import produce, { Draft, setAutoFreeze } from 'immer'
 import {
@@ -20,6 +22,18 @@ const hasProxy = !!globalThisPolyfill.Proxy
 
 setAutoFreeze(false)
 
+const defaults = (...args:any[]):any=>{
+  const result = {}
+  each(args,(target)=>{
+    each(target,(value,key)=>{
+      if(isValid(value)){
+        result[key] = value
+      }
+    })
+  })
+  return result
+}
+
 export const createStateModel = <State = {}, Props = {}>(
   Factory: IStateModelFactory<State, Props>
 ): IStateModelProvider<State, Props> => {
@@ -31,6 +45,7 @@ export const createStateModel = <State = {}, Props = {}>(
         useDirty?: boolean
         computeState?: (draft: State, prevState: State) => void
       }
+    public cacheProps?: any
     public displayName?: string
     public dirtyNum: number
     public dirtys: StateDirtyMap<State>
@@ -43,10 +58,7 @@ export const createStateModel = <State = {}, Props = {}>(
       super()
       this.state = { ...Factory.defaultState }
       this.prevState = { ...Factory.defaultState }
-      this.props = {
-        ...Factory.defaultProps,
-        ...defaultProps
-      }
+      this.props = defaults(Factory.defaultProps,defaultProps)
       this.dirtys = {}
       this.dirtyNum = 0
       this.stackCount = 0
@@ -85,7 +97,7 @@ export const createStateModel = <State = {}, Props = {}>(
       }
     }
 
-    unsafe_getSourceState = (callback?: (state: State) => any) => {
+    getSourceState = (callback?: (state: State) => any) => {
       if (isFn(callback)) {
         return callback(this.state)
       } else {
@@ -93,9 +105,39 @@ export const createStateModel = <State = {}, Props = {}>(
       }
     }
 
-    unsafe_setSourceState = (callback: (state: State) => void) => {
+    setSourceState = (callback: (state: State) => void) => {
       if (isFn(callback)) {
         callback(this.state)
+      }
+    }
+
+    watchProps = <T extends { [key: string]: any }>(
+      props: T,
+      keys: string[],
+      callback: (
+        changedProps: {
+          [key: string]: any
+        },
+        props?: T
+      ) => void
+    ) => {
+      if (!this.cacheProps) {
+        this.cacheProps = { ...props }
+      } else {
+        let changeNum = 0
+        let changedProps = {}
+        toArr(keys).forEach((key: string) => {
+          if (!isEqual(this.cacheProps[key], props[key])) {
+            changeNum++
+            changedProps[key] = props[key]
+          }
+        })
+        if (changeNum > 0) {
+          if (isFn(callback)) {
+            callback(changedProps, props)
+          }
+          this.cacheProps = { ...props }
+        }
       }
     }
 
@@ -133,7 +175,7 @@ export const createStateModel = <State = {}, Props = {}>(
           )
           if (isFn(this.controller.dirtyCheck)) {
             const result = this.controller.dirtyCheck(this.dirtys)
-            if (result !== undefined) {
+            if (isValid(result)) {
               Object.assign(this.dirtys, result)
             }
           }
@@ -179,7 +221,7 @@ export const createStateModel = <State = {}, Props = {}>(
           )
           if (isFn(this.controller.dirtyCheck)) {
             const result = this.controller.dirtyCheck(this.dirtys)
-            if (result !== undefined) {
+            if (isValid(result)) {
               Object.assign(this.dirtys, result)
             }
           }

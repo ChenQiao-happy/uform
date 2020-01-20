@@ -1,17 +1,27 @@
 import { ButtonProps } from '@alifd/next/types/button'
 import { FormProps, ItemProps } from '@alifd/next/types/form'
 import { StepProps, ItemProps as StepItemProps } from '@alifd/next/types/step'
+import { ColumnProps, TableProps } from '@alifd/next/types/table'
 import {
   ISchemaFormProps,
   IMarkupSchemaFieldProps,
-  ISchemaFieldComponentProps
+  ISchemaFieldComponentProps,
+  FormPathPattern
 } from '@uform/react-schema-renderer'
 import { PreviewTextConfigProps } from '@uform/react-shared-components'
 import { StyledComponent } from 'styled-components'
+import {
+  DragObjectWithType,
+  ConnectDragSource,
+  ConnectDragPreview
+} from 'react-dnd'
 
 type ColSpanType = number | string
 
-export type INextSchemaFormProps = FormProps &
+export type INextSchemaFormProps = Omit<
+  FormProps,
+  'onSubmit' | 'defaultValue'
+> &
   IFormItemTopProps &
   PreviewTextConfigProps &
   ISchemaFormProps
@@ -93,5 +103,11 @@ export interface IFormTextBox extends IItemProps {
 }
 
 export interface IFormStep extends StepProps {
-  dataSource: StepItemProps[]
+  dataSource: Array<StepItemProps & { name: FormPathPattern }>
+}
+
+export type IDragHandlerCellProps = React.PropsWithChildren<{}>
+
+export interface IDragableRowProps {
+  columns: ColumnProps[]
 }

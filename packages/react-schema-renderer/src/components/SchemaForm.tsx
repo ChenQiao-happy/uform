@@ -21,7 +21,7 @@ export const SchemaForm: React.FC<ISchemaFormProps> = props => {
       value={{ fields, virtualFields, formComponent, formItemComponent }}
     >
       <SchemaContext.Provider value={schema}>
-        <Form {...props} form={form}>
+        <Form form={form}>
           {React.createElement(
             formComponent,
             {
@@ -34,7 +34,7 @@ export const SchemaForm: React.FC<ISchemaFormProps> = props => {
                 form.reset({ validate: false, forceClear: false })
               }
             },
-            <SchemaField path={''} />,
+            <SchemaField schema={schema} path={''} />,
             children
           )}
         </Form>

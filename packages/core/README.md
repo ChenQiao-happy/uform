@@ -40,7 +40,7 @@ npm install --save @uform/core
   - [IFormCreatorOptions](#iformcreatoroptions)
   - [IForm](#iform)
   - [IMutators](#imutators)
-  - [Validation](#the-validator)
+  - [Validation](#validation)
   - [IFormState](#iformstate)
   - [IFieldState](#ifieldstate)
   - [IVirtualFieldState](#ivirtualfieldstate)
@@ -432,6 +432,15 @@ enum LifeCycleTypes { // Form pre-initialization trigger
   // Triggered when the form submission ends
   ON_FORM_SUBMIT_END = 'onFormSubmitEnd',
 
+  // Triggered when the form submission within validate
+  ON_FORM_SUBMIT_VALIDATE_START = 'onFormSubmitValidateStart',
+
+  // Triggered when the form submission ends due to validate successs
+  ON_FORM_SUBMIT_VALIDATE_SUCCESS= 'onFormSubmitValidateSuccess',
+
+  // Triggered when the form submission ends due to validate failed
+  ON_FORM_SUBMIT_VALIDATE_FAILED = 'onFormSubmitValidateFailed',
+
   // Triggered when the form value changes
   ON_FORM_VALUES_CHANGE = 'onFormValuesChange',
 
@@ -545,9 +554,10 @@ interface IForm {
     forceClear?: boolean // Forced check
     validate?: boolean // Reset range for batch or precise control of the field to be reset
     selector?: FormPathPattern
+    clearInitialValue?: boolean //Clear initialValue
   }): Promise<void | IFormValidateResult>
   /*
-   * Validation form
+   * Validation form, throw IFormValidateResult when validation fails
    */
   validate(
     path?: FormPathPattern,
@@ -708,7 +718,7 @@ interface IMutators {
 ```typescript
 type CustomValidator = (
   value: any,
-  rescription?: ValidateDescription
+  description?: ValidateDescription
 ) => ValidateResponse
 type SyncValidateResponse =
   | null
@@ -880,9 +890,9 @@ interface IField/IVirtualField {
       silent?: boolean
    ) => void
    // Get the source status
-   unsafe_getSourceState: (callback?: (state: IFieldState) => any) => any
+   getSourceState: (callback?: (state: IFieldState) => any) => any
    // Set the source state
-   unsafe_setSourceState: (callback?: (state: IFieldState) => void) => void
+   setSourceState: (callback?: (state: IFieldState) => void) => void
    // Get status changes
    hasChanged: (key?: string) => boolean
    // Get the state dirty

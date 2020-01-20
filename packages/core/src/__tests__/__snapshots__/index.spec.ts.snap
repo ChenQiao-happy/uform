@@ -57,6 +57,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -93,6 +94,7 @@ Object {
   },
   "bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -158,6 +160,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -194,6 +197,7 @@ Object {
   },
   "bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -206,6 +210,109 @@ Object {
     "invalid": false,
     "loading": false,
     "modified": false,
+    "mounted": false,
+    "name": "bb",
+    "path": "bb",
+    "pristine": true,
+    "props": Object {},
+    "required": false,
+    "ruleErrors": Array [],
+    "ruleWarnings": Array [],
+    "rules": Array [],
+    "selfEditable": undefined,
+    "touched": false,
+    "unmounted": false,
+    "valid": true,
+    "validating": false,
+    "value": 222,
+    "values": Array [
+      222,
+    ],
+    "visible": true,
+    "visited": false,
+    "warnings": Array [],
+  },
+}
+`;
+
+exports[`createForm initialValues then change field visible after init 1`] = `
+Object {
+  "": Object {
+    "displayName": "FormState",
+    "editable": undefined,
+    "errors": Array [],
+    "initialValues": Object {
+      "aa": 111,
+      "bb": 222,
+    },
+    "initialized": true,
+    "invalid": false,
+    "loading": false,
+    "mounted": false,
+    "pristine": true,
+    "props": Object {},
+    "submitting": false,
+    "unmounted": false,
+    "valid": true,
+    "validating": false,
+    "values": Object {
+      "aa": 111,
+      "bb": 222,
+    },
+    "warnings": Array [],
+  },
+  "aa": Object {
+    "active": false,
+    "dataType": "any",
+    "display": true,
+    "displayName": "FieldState",
+    "editable": true,
+    "effectErrors": Array [],
+    "effectWarnings": Array [],
+    "errors": Array [],
+    "formEditable": undefined,
+    "initialValue": 111,
+    "initialized": true,
+    "invalid": false,
+    "loading": false,
+    "modified": true,
+    "mounted": false,
+    "name": "aa",
+    "path": "aa",
+    "pristine": true,
+    "props": Object {},
+    "required": false,
+    "ruleErrors": Array [],
+    "ruleWarnings": Array [],
+    "rules": Array [],
+    "selfEditable": undefined,
+    "touched": false,
+    "unmounted": false,
+    "valid": true,
+    "validating": false,
+    "value": 111,
+    "values": Array [
+      111,
+    ],
+    "visible": true,
+    "visited": false,
+    "warnings": Array [],
+  },
+  "bb": Object {
+    "active": false,
+    "dataType": "any",
+    "display": true,
+    "displayName": "FieldState",
+    "editable": true,
+    "effectErrors": Array [],
+    "effectWarnings": Array [],
+    "errors": Array [],
+    "formEditable": undefined,
+    "initialValue": 222,
+    "initialized": true,
+    "invalid": false,
+    "loading": false,
+    "modified": true,
     "mounted": false,
     "name": "bb",
     "path": "bb",
@@ -259,6 +366,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -295,6 +403,7 @@ Object {
   },
   "bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -409,6 +518,7 @@ Object {
   },
   "a": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -468,6 +578,7 @@ Object {
   },
   "a": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -527,6 +638,7 @@ Object {
   },
   "a": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -586,6 +698,7 @@ Object {
   },
   "a": Object {
     "active": true,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -651,6 +764,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -687,6 +801,7 @@ Object {
   },
   "bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -751,6 +866,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -787,6 +903,7 @@ Object {
   },
   "bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -846,6 +963,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -897,6 +1015,7 @@ Object {
   },
   "aa.bb.cc": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -927,7 +1046,7 @@ Object {
     "values": Array [
       123,
     ],
-    "visible": true,
+    "visible": false,
     "visited": false,
     "warnings": Array [],
   },
@@ -958,6 +1077,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1002,6 +1122,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1042,6 +1163,7 @@ Object {
   },
   "aa.bb.cc": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1101,6 +1223,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1145,6 +1268,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1185,6 +1309,7 @@ Object {
   },
   "aa.bb.cc": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1215,7 +1340,7 @@ Object {
     "values": Array [
       123,
     ],
-    "visible": true,
+    "visible": false,
     "visited": false,
     "warnings": Array [],
   },
@@ -1266,6 +1391,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1329,6 +1455,7 @@ Object {
   },
   "aa.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1374,6 +1501,7 @@ Object {
   },
   "aa.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1410,6 +1538,7 @@ Object {
   },
   "aa.0.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1446,6 +1575,7 @@ Object {
   },
   "aa.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1491,6 +1621,7 @@ Object {
   },
   "aa.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1527,6 +1658,7 @@ Object {
   },
   "aa.1.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1604,6 +1736,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1659,6 +1792,7 @@ Object {
   },
   "aa.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1704,6 +1838,7 @@ Object {
   },
   "aa.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1740,6 +1875,7 @@ Object {
   },
   "aa.0.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1821,6 +1957,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1884,6 +2021,7 @@ Object {
   },
   "aa.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1929,6 +2067,7 @@ Object {
   },
   "aa.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -1965,6 +2104,7 @@ Object {
   },
   "aa.0.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2001,6 +2141,7 @@ Object {
   },
   "aa.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2046,6 +2187,7 @@ Object {
   },
   "aa.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2082,6 +2224,7 @@ Object {
   },
   "aa.1.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2148,6 +2291,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2194,6 +2338,7 @@ Object {
   },
   "aa.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2230,6 +2375,7 @@ Object {
   },
   "aa.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2266,6 +2412,7 @@ Object {
   },
   "aa.0.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2302,6 +2449,7 @@ Object {
   },
   "aa.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2342,6 +2490,7 @@ Object {
   },
   "aa.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2378,6 +2527,7 @@ Object {
   },
   "aa.1.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2443,6 +2593,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2487,6 +2638,7 @@ Object {
   },
   "aa.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2527,6 +2679,7 @@ Object {
   },
   "aa.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2563,6 +2716,7 @@ Object {
   },
   "aa.0.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2629,6 +2783,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2675,6 +2830,7 @@ Object {
   },
   "aa.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2711,6 +2867,7 @@ Object {
   },
   "aa.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2747,6 +2904,7 @@ Object {
   },
   "aa.0.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2783,6 +2941,7 @@ Object {
   },
   "aa.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2823,6 +2982,7 @@ Object {
   },
   "aa.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2859,6 +3019,7 @@ Object {
   },
   "aa.1.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2923,6 +3084,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -2968,6 +3130,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3004,6 +3167,7 @@ Object {
   },
   "aa.cc": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3068,6 +3232,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3113,6 +3278,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3149,6 +3315,7 @@ Object {
   },
   "aa.cc": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3218,6 +3385,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3263,6 +3431,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3299,6 +3468,7 @@ Object {
   },
   "aa.cc": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3380,6 +3550,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3443,6 +3614,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3500,6 +3672,7 @@ Object {
   },
   "aa.bb.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3542,6 +3715,7 @@ Object {
   },
   "aa.bb.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3578,6 +3752,7 @@ Object {
   },
   "aa.bb.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3620,6 +3795,7 @@ Object {
   },
   "aa.bb.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3694,6 +3870,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3743,6 +3920,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3831,6 +4009,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3894,6 +4073,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3951,6 +4131,7 @@ Object {
   },
   "aa.bb.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -3993,6 +4174,7 @@ Object {
   },
   "aa.bb.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4029,6 +4211,7 @@ Object {
   },
   "aa.bb.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4071,6 +4254,7 @@ Object {
   },
   "aa.bb.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4152,6 +4336,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4215,6 +4400,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4272,6 +4458,7 @@ Object {
   },
   "aa.bb.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4314,6 +4501,7 @@ Object {
   },
   "aa.bb.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4350,6 +4538,7 @@ Object {
   },
   "aa.bb.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4392,6 +4581,7 @@ Object {
   },
   "aa.bb.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4473,6 +4663,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4536,6 +4727,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4593,6 +4785,7 @@ Object {
   },
   "aa.bb.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4635,6 +4828,7 @@ Object {
   },
   "aa.bb.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4671,6 +4865,7 @@ Object {
   },
   "aa.bb.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4713,6 +4908,7 @@ Object {
   },
   "aa.bb.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4783,6 +4979,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4837,6 +5034,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4887,6 +5085,7 @@ Object {
   },
   "aa.bb.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4927,6 +5126,7 @@ Object {
   },
   "aa.bb.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -4963,6 +5163,7 @@ Object {
   },
   "aa.bb.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5003,6 +5204,7 @@ Object {
   },
   "aa.bb.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5073,6 +5275,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5127,6 +5330,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5177,6 +5381,7 @@ Object {
   },
   "aa.bb.0": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5217,6 +5422,7 @@ Object {
   },
   "aa.bb.0.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5253,6 +5459,7 @@ Object {
   },
   "aa.bb.1": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5293,6 +5500,7 @@ Object {
   },
   "aa.bb.1.aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5356,6 +5564,7 @@ Object {
   },
   "aa": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,
@@ -5396,6 +5605,7 @@ Object {
   },
   "aa.bb": Object {
     "active": false,
+    "dataType": "any",
     "display": true,
     "displayName": "FieldState",
     "editable": true,

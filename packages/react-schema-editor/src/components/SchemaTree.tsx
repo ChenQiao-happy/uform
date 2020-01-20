@@ -1,21 +1,48 @@
-import React, { useCallback } from 'react'
-import { Tree, Row, Col } from 'antd'
+import React from 'react'
+import { Tree, Icon, Menu, Dropdown } from 'antd'
 import { ISchemaTreeProps } from '../utils/types'
+import { getFieldTypeData } from '../utils/fieldEditorHelpers';
 import * as fp from 'lodash/fp'
-import _ from 'lodash'
-import FieldEditor from './FieldEditor'
 
 const TreeNode = Tree.TreeNode
+const { SubMenu } = Menu;
 
 export const SchemaTree: React.FC<ISchemaTreeProps> = ({
   schema,
-  onChange
+  onChange,
+  onSelect
 }) => {
-  const [selectedPath, setSelectedPath] = React.useState(null)
+  const addIndex = React.useRef(0)
+  const selectedKey = React.useRef('');
 
   const handleSelect = React.useCallback((path: string[]) => {
-    setSelectedPath(path[0])
+    selectedKey.current = path[0];
+    onSelect && onSelect(path[0])
   }, [])
+
+  const handleRightClick = ({node}) => {
+    handleSelect([node.props.eventKey]);
+  }
+
+  const handleMenuClick = ({ item, key, keyPath, domEvent }) => {
+    if(selectedKey.current === 'root') return; // 根节点不能进行任何操作
+    if(keyPath.length > 1) {
+      if(keyPath[1] == 'node') {// 添加节点
+        addNode(keyPath[0]);
+      } else if (keyPath[1] == 'child') { // 添加叶子节点
+        addChildNode(keyPath[0])
+      } else {
+  
+      }
+    } else {
+      switch(keyPath[0]) {
+        case 'delete':
+          deleteNode()
+          break;
+      }
+    }
+    
+  }
 
   const handleDrop = React.useCallback(
     (info: any) => {
@@ -36,98 +63,138 @@ export const SchemaTree: React.FC<ISchemaTreeProps> = ({
         // info.dropPosition -1 表示上方同级，1 表示下方同级
       } else {
         // 拖拽到这个元素内部
-        if (targetValue.type !== 'object') {
-          // 只有 object 才能被拖入
-          return
-        }
+        if (targetValue.type === 'object') {
+          // 拖入到 object
+          if (
+            (targetPath === 'root' && sourcePath.split('.').length === 2) ||
+            (targetPath !== 'root' &&
+              fp.dropRight(2, sourcePath.split('.')).join('.') === targetPath)
+          ) {
+            // 拖拽到直接父节点，等于不起作用
+            return
+          }
 
-        if (
-          (targetPath === 'root' && sourcePath.split('.').length === 2) ||
-          (targetPath !== 'root' &&
-            fp.dropRight(2, sourcePath.split('.')).join('.') === targetPath)
+          let newSchema = schema
+
+          // 增加新的 key
+          const newTargetValue = fp.set(
+            [
+              'properties',
+              getUniqueKeyFromObjectKeys(
+                sourceKey,
+                Object.keys(targetValue.properties || {})
+              )
+            ],
+            sourceValue,
+            targetValue
+          )
+
+          newSchema =
+            targetPath === 'root'
+              ? newTargetValue
+              : fp.set(targetPath, newTargetValue, newSchema)
+
+          // 删除旧的 key
+          newSchema = fp.unset(sourcePath, newSchema)
+
+          onChange(newSchema)
+        } else if (
+          targetValue.type === 'array' &&
+          (fp.get(['items'], targetValue) || []).length === 0
         ) {
-          // 拖拽到直接父节点，等于不起作用
-          return
+          // 拖入到 array
+
+          // array 只能拖入一个元素，因此 A 的子节点 B 无法再次拖入 A
+          let newSchema = schema
+
+          // 增加新的 key
+          const newTargetValue = fp.set(['items'], sourceValue, targetValue)
+
+          newSchema = fp.set(targetPath, newTargetValue, newSchema)
+
+          // 删除旧的 key
+          newSchema = fp.unset(sourcePath, newSchema)
+
+          onChange(newSchema)
         }
-
-        let newSchema = schema
-
-        // 增加新的 key
-        const newTargetValue = fp.set(
-          ['properties', sourceKey],
-          sourceValue,
-          targetValue
-        )
-
-        newSchema =
-          targetPath === 'root'
-            ? newTargetValue
-            : fp.set(targetPath, newTargetValue, newSchema)
-
-        // 删除旧的 key
-        newSchema = fp.unset(sourcePath, newSchema)
-
-        onChange(newSchema)
       }
     },
     [schema, onChange]
   )
 
-  const selectedSchema =
-    selectedPath &&
-    (selectedPath === 'root' ? schema : fp.get(selectedPath, schema))
-  console.log('selectedPath====', selectedPath)
-  console.log('selectedSchema====', selectedSchema)
+  const addNode = React.useCallback((type) => {
+    let newSchema = schema
+    let pathArr = selectedKey.current.split('.');
+    pathArr.pop();
+    pathArr.push('new' + addIndex.current++);
+    newSchema = fp.set(
+      pathArr.join('.'),
+      { type: type || 'object' },
+      newSchema
+    )
+
+    onChange(newSchema)
+  }, [schema, onChange])
+
+  const addChildNode = React.useCallback((type) => {
+    let newSchema = schema
+    newSchema = fp.set(
+      `${selectedKey.current}.properties.new${addIndex.current++}`,
+      { type: type || 'object' },
+      newSchema
+    )
+
+    onChange(newSchema)
+  }, [schema, onChange])
+
+  const deleteNode = React.useCallback(() => {
+    let newSchema = schema
+    newSchema = fp.unset(selectedKey.current, newSchema);
+    onChange(newSchema)
+  }, [schema, onChange])
+
+  const getSubMenus = () => {
+    const {options} = getFieldTypeData();
+    return options.map(option => {
+      return <Menu.Item key={option.value}>{option.label}</Menu.Item>
+    })
+  }
+
+  const getMenu = () => {
+    const fieldSchema = fp.get(selectedKey.current, schema);
+    const disableChildNode = !fieldSchema || fieldSchema.type === 'string'
+    return (
+      <Menu onClick={handleMenuClick}>
+        <SubMenu key='node' title={<><Icon type='plus'></Icon>添加节点 </>}>
+          {getSubMenus()}
+        </SubMenu>
+        <SubMenu key='child' title={<><Icon type='plus'></Icon>添加子节点 </>} disabled={disableChildNode}>
+          {getSubMenus()}
+        </SubMenu>
+        <Menu.Item key='delete'>
+          <Icon type='delete'></Icon>删除节点
+        </Menu.Item>
+      </Menu>
+    )
+  }
+
   return (
-    <Row>
-      <Col span={12}>
+    <Dropdown overlay={getMenu()} trigger={['contextMenu']}>
+      <div>
         <Tree
           defaultExpandAll
           showLine
           draggable
+          selectedKeys={[selectedKey.current]}
           onSelect={handleSelect}
           onDrop={handleDrop}
+          onRightClick={handleRightClick}
         >
           {TreeNodeBySchema({ schema, path: [] })}
         </Tree>
-      </Col>
-      <Col span={12}>
-        {selectedSchema && (
-          <FieldEditor
-            xProps={{
-              help: {},
-              validateStatus: {},
-              hasFeedback: {}
-            }}
-            xRules={{ required: {}, pattern: {}, validator: {} }}
-            components={[
-              {
-                name: 'Input',
-                'x-component-props': {
-                  value: {},
-                  disabled: {},
-                  onChange: {}
-                }
-              },
-              {
-                name: 'Switch',
-                'x-component-props': {
-                  checked: {},
-                  disabled: {},
-                  onChange: {}
-                }
-              }
-            ]}
-            schema={selectedSchema}
-            onChange={value => {
-              const newSchema = _.clone(schema)
-              _.set(newSchema, selectedPath, value)
-              onChange(newSchema)
-            }}
-          />
-        )}
-      </Col>
-    </Row>
+      </div>
+    </Dropdown>
+    
   )
 }
 
@@ -147,7 +214,7 @@ const TreeNodeBySchema: React.FC<{
   switch (schema.type) {
     case 'object':
       return (
-        <TreeNode {...currentTreeLevelProps}>
+        <TreeNode icon={<Icon type="folder" />} {...currentTreeLevelProps}>
           {schema.properties &&
             Object.keys(schema.properties).map(key =>
               TreeNodeBySchema({
@@ -158,8 +225,36 @@ const TreeNodeBySchema: React.FC<{
         </TreeNode>
       )
     case 'array':
+      return (
+        <TreeNode
+          icon={<Icon type="deployment-unit" />}
+          {...currentTreeLevelProps}
+        >
+          {schema.items &&
+            TreeNodeBySchema({
+              schema: schema.items,
+              path: path.concat('items')
+            })}
+        </TreeNode>
+      )
     default:
   }
 
-  return <TreeNode {...currentTreeLevelProps} />
+  return <TreeNode icon={<Icon type="file" />} {...currentTreeLevelProps} />
+}
+
+function getUniqueKeyFromObjectKeys(key: string, keys: string[], count = -1) {
+  if (count === -1) {
+    if (keys.includes(key)) {
+      return getUniqueKeyFromObjectKeys(key, keys, 0)
+    }
+    return key
+  }
+
+  const newKey = key + count
+  if (keys.includes(newKey)) {
+    return getUniqueKeyFromObjectKeys(key, keys, count + 1)
+  } else {
+    return newKey
+  }
 }

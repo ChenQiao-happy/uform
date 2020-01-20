@@ -1,5 +1,5 @@
 import React, { useRef, useLayoutEffect } from 'react'
-import { createControllerBox } from '@uform/react-schema-renderer'
+import { createControllerBox, Schema } from '@uform/react-schema-renderer'
 import { IFormTextBox } from '../types'
 import { toArr } from '@uform/shared'
 import { CompatNextFormItem } from '../compat/FormItem'
@@ -7,7 +7,8 @@ import styled from 'styled-components'
 
 export const FormTextBox = createControllerBox<IFormTextBox>(
   'text-box',
-  styled(({ props, className, children }) => {
+  styled(({ props, form, className, children }) => {
+    const schema = new Schema(props)
     const {
       title,
       help,
@@ -21,7 +22,7 @@ export const FormTextBox = createControllerBox<IFormTextBox>(
       {
         gutter: 5
       },
-      props['x-component-props']
+      schema.getExtendsComponentProps()
     )
     const ref: React.RefObject<HTMLDivElement> = useRef()
     const arrChildren = toArr(children)
@@ -40,7 +41,10 @@ export const FormTextBox = createControllerBox<IFormTextBox>(
                   '.next-form-item-control:first-child'
                 )
                 if (ctrl) {
-                  el.style.width = ctrl.getBoundingClientRect().width + 'px'
+                  const editable = form.getFormState(state => state.editable)
+                  el.style.width = editable
+                    ? ctrl.getBoundingClientRect().width + 'px'
+                    : 'auto'
                 }
               }
             ]
@@ -118,7 +122,10 @@ export const FormTextBox = createControllerBox<IFormTextBox>(
     }
     .preview-text {
       text-align: center !important;
-      white-space:nowrap;
+      white-space: nowrap;
+    }
+    .next-form-item-control {
+      position: relative;
     }
   `
 )

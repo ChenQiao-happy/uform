@@ -8,13 +8,15 @@
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "clean": "lerna clean",
-    "build": "rm -rf packages/*/lib packages/*/esm && lerna run build",
+    "build": "rimraf -rf packages/*/lib packages/*/esm && lerna run build",
     "build:docs": "node ./scripts/docs.js build -i docs -o docs",
     "start": "node ./scripts/docs.js start -i docs",
     "sort-api": "node ./scripts/sort-api-table.js",
     "test": "npm run lint && jest",
+    "test:sc": "jest --watch packages/react-shared-components/src/__tests__/*.spec.tsx",
     "test:core": "jest --watch packages/core/src/__tests__/*.spec.ts",
     "test:hook": "jest --watch packages/react/src/__tests__/*.spec.tsx",
+    "test:renderer": "jest --watch packages/react-schema-renderer/src/__tests__/*.spec.tsx",
     "test:editor": "jest --watch packages/react-schema-editor/src/__tests__/*.spec.ts",
     "test:prod": "cross-env TEST_ENV=production npm run build && jest",
     "doc:core": "doc-scripts start -i packages/core",
@@ -101,15 +103,19 @@
     "majo": "^0.7.1",
     "markdown-toc": "^1.2.0",
     "moment": "^2.24.0",
+    "monaco-editor": "^0.18.1",
+    "node-sass": "^4.13.0",
     "onchange": "^5.2.0",
     "prettier": "^1.18.2",
     "pretty-format": "^24.0.0",
     "react": "^16.8.3",
     "react-dom": "^16.8.3",
     "react-eva": "^1.1.7",
+    "react-monaco-editor": "^0.32.1",
     "react-test-renderer": "^16.11.0",
     "remark-parse": "^6.0.3",
     "remark-stringify": "^6.0.4",
+    "rimraf": "^3.0.0",
     "scheduler": "^0.15.0",
     "semver-regex": "^2.0.0",
     "staged-git-files": "^1.1.2",
@@ -121,7 +127,9 @@
     "unified": "^7.1.0",
     "user-event": "^1.4.4",
     "wait-for-expect": "^3.0.1",
-    "webpack": "^4.35.3"
+    "webpack": "^4.35.3",
+    "opencollective": "^1.0.3",
+    "opencollective-postinstall": "^2.0.2"
   },
   "config": {
     "ghooks": {
@@ -141,11 +149,6 @@
       "npm run lint",
       "git add"
     ]
-  },
-  "dependencies": {
-    "lodash": "^4.17.15",
-    "opencollective": "^1.0.3",
-    "opencollective-postinstall": "^2.0.2"
   },
   "collective": {
     "type": "opencollective",

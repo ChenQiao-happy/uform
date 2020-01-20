@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   ValidatePatternRules,
   ValidateArrayRules,
@@ -15,15 +14,54 @@ import {
   isBool,
   isValid,
   FormPathPattern,
-  FormPath
+  FormPath,
+  deprecate
 } from '@uform/shared'
-import { ISchemaFieldComponentProps, SchemaMessage, ISchema } from '../types'
+import { SchemaMessage, ISchema } from '../types'
 
 const numberRE = /^\d+$/
 
 type SchemaProperties<T = Schema> = {
-  [key: string]: Schema
+  [key: string]: T
 }
+
+const findProperty = (object: any, propertyKey: string | number) => {
+  if (!object) return object
+  if (object[propertyKey]) {
+    return object[propertyKey]
+  }
+  //降级搜索，如果key通过映射的方式没有完全映射上，会提供降级搜索方式，保证完备性
+  for (let key in object) {
+    if (FormPath.parse(key).match(`[[${propertyKey}]]`)) {
+      return object[key]
+    }
+  }
+}
+
+const filterProperties = <T extends object>(
+  object: T,
+  keys: string[]
+): T => {
+  let result = {} as any
+  for (let key in object) {
+    if (!keys.includes(key) && Object.hasOwnProperty.call(object, key)) {
+      result[key] = object[key]
+    }
+  }
+  return result
+}
+
+//向后兼容逻辑，未来会干掉
+const COMPAT_FORM_ITEM_PROPS = [
+  'required',
+  'className',
+  'prefix',
+  'labelAlign',
+  'labelTextAlign',
+  'size',
+  'labelCol',
+  'wrapperCol'
+]
 
 export class Schema implements ISchema {
   /** base json schema spec**/
@@ -32,8 +70,8 @@ export class Schema implements ISchema {
   public default?: any
   public readOnly?: boolean
   public writeOnly?: boolean
-  public type?: 'string' | 'object' | 'array' | 'number' | string
-  public enum?: Array<string | number | { label: SchemaMessage; value: any }>
+  public type?: ISchema['type']
+  public enum?: ISchema['enum']
   public const?: any
   public multipleOf?: number
   public maximum?: number
@@ -66,30 +104,38 @@ export class Schema implements ISchema {
   public ['x-index']?: number
   public ['x-rules']?: ValidatePatternRules
   public ['x-component']?: string
-  public ['x-component-props']?: { [name: string]: any }
-  public ['x-render']?: <T = ISchemaFieldComponentProps>(
-    props: T & {
-      renderComponent: () => React.ReactElement
-    }
-  ) => React.ReactElement
-  public ['x-effect']?: (
-    dispatch: (type: string, payload: any) => void,
-    option?: object
-  ) => { [key: string]: any }
+  public ['x-component-props']?: ISchema['x-component-props']
+  public ['x-render']?: ISchema['x-render']
+  public ['x-effect']?: ISchema['x-effect']
   /** schema class self specs**/
 
   public parent?: Schema
 
   public _isJSONSchemaObject = true
 
-  public name?: string
+  public key?: string
 
-  constructor(json: ISchema, parent?: Schema, name?: string) {
+  public path?: string
+
+  public linkages?: ISchema['x-linkages']
+
+  constructor(json: ISchema, parent?: Schema, key?: string) {
     if (parent) {
       this.parent = parent
     }
-    if (name) {
-      this.name = name
+    if (key) {
+      this.key = key
+    }
+    if (this.parent && this.parent.isArray()) {
+      this.path = this.parent.path + '.*'
+    } else {
+      if (this.parent) {
+        this.path = this.parent.path
+          ? this.parent.path + '.' + this.key
+          : this.key
+      } else {
+        this.path = ''
+      }
     }
     return this.fromJSON(json) as any
   }
@@ -101,16 +147,17 @@ export class Schema implements ISchema {
       return this
     }
     let res: Schema = this
-    let index = 0
-    let newPath = FormPath.parse(path)
-    newPath.forEach(key => {
+    let depth = 0
+    let parsed = FormPath.parse(path)
+    parsed.forEach(key => {
       if (res && !isEmpty(res.properties)) {
-        const lastKey = newPath.segments.slice(index).join('.')
-        res = res.properties[key] || res.properties[lastKey]
+        res =
+          findProperty(res.properties, key) ||
+          findProperty(res.properties, parsed.segments.slice(depth).join('.'))
       } else if (res && !isEmpty(res.items) && numberRE.test(key as string)) {
-        res = isArr(res.items) ? res.items[key] : res.items
+        res = isArr(res.items) ? findProperty(res.items, key) : res.items
       }
-      index++
+      depth++
     })
     return res
   }
@@ -147,6 +194,7 @@ export class Schema implements ISchema {
       additionalItems,
       patternProperties,
       items,
+      path,
       parent,
       ...props
     } = this
@@ -161,7 +209,7 @@ export class Schema implements ISchema {
       rules.push({ max: this.maxItems })
     }
     if (isValid(this.minItems)) {
-      rules.push({ max: this.minItems })
+      rules.push({ min: this.minItems })
     }
     if (isValid(this.maxLength)) {
       rules.push({ max: this.maxLength })
@@ -247,41 +295,29 @@ export class Schema implements ISchema {
     }
   }
   getExtendsEditable(): boolean {
+    const { editable } = this.getExtendsComponentProps()
     if (isValid(this.editable)) {
       return this.editable
-    } else if (isValid(this['x-props']) && isValid(this['x-props'].editable)) {
-      return this['x-props'].editable
-    } else if (
-      isValid(this['x-component-props']) &&
-      isValid(this['x-component-props'].editable)
-    ) {
-      return this['x-component-props'].editable
+    } else if (isValid(editable)) {
+      return editable
     } else if (isValid(this.readOnly)) {
       return !this.readOnly
     }
   }
   getExtendsVisible(): boolean {
+    const { visible } = this.getExtendsComponentProps()
     if (isValid(this.visible)) {
       return this.visible
-    } else if (isValid(this['x-props']) && isValid(this['x-props'].visible)) {
-      return this['x-props'].visible
-    } else if (
-      isValid(this['x-component-props']) &&
-      isValid(this['x-component-props'].visible)
-    ) {
-      return this['x-component-props'].visible
+    } else if (isValid(visible)) {
+      return visible
     }
   }
   getExtendsDisplay(): boolean {
+    const { display } = this.getExtendsComponentProps()
     if (isValid(this.display)) {
       return this.display
-    } else if (isValid(this['x-props']) && isValid(this['x-props'].display)) {
-      return this['x-props'].display
-    } else if (
-      isValid(this['x-component-props']) &&
-      isValid(this['x-component-props'].display)
-    ) {
-      return this['x-component-props'].display
+    } else if (isValid(display)) {
+      return display
     }
   }
   getExtendsTriggerType() {
@@ -297,12 +333,19 @@ export class Schema implements ISchema {
     }
   }
   getExtendsItemProps() {
+    if (isValid(this['x-item-props'])) {
+      deprecate('x-item-props is deprecate in future, Please do not use it.')
+    }
     return this['x-item-props'] || {}
   }
+
   getExtendsComponent() {
     return this['x-component']
   }
   getExtendsRenderer() {
+    if (isValid(this['x-render'])) {
+      deprecate('x-render is deprecate in future, Please do not use it.')
+    }
     return this['x-render']
   }
   getExtendsEffect() {
@@ -311,8 +354,13 @@ export class Schema implements ISchema {
   getExtendsProps() {
     return this['x-props'] || {}
   }
-  getExtendsComponentProps() {
-    return { ...this['x-props'], ...this['x-component-props'] }
+  getExtendsComponentProps(needfilterFormItemKeys: boolean = true) {
+    const props = { ...this['x-props'], ...this['x-component-props'] }
+    if(!needfilterFormItemKeys) return props
+    return filterProperties(props, COMPAT_FORM_ITEM_PROPS)
+  }
+  getExtendsLinkages() {
+    return this['x-linkages']
   }
   /**
    * getters
@@ -332,6 +380,7 @@ export class Schema implements ISchema {
     this.items = new Schema(schema, this)
     return this.items
   }
+
   toJSON() {
     const result: ISchema = this.getSelfProps()
     if (isValid(this.properties)) {
@@ -360,13 +409,20 @@ export class Schema implements ISchema {
 
   fromJSON(json: ISchema = {}) {
     if (typeof json === 'boolean') return json
-    if (json instanceof Schema) return json
-    Object.assign(this, json)
+    if (json instanceof Schema) {
+      Object.assign(this, json)
+      return this
+    } else {
+      Object.assign(this, json)
+    }
     if (isValid(json.type)) {
       this.type = lowercase(String(json.type))
     }
     if (isValid(json['x-component'])) {
       this['x-component'] = lowercase(json['x-component'])
+    }
+    if (isValid(json['x-linkages'])) {
+      this.linkages = isArr(json['x-linkages']) ? json['x-linkages'] : []
     }
     if (!isEmpty(json.properties)) {
       this.properties = map(json.properties, (item, key) => {
@@ -439,6 +495,6 @@ export class Schema implements ISchema {
         properties.push({ schema: item, key })
       }
     })
-    return properties
+    return properties.filter(item => !!item)
   }
 }

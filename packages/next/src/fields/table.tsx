@@ -1,5 +1,4 @@
-import React from 'react'
-import { Icon } from '@alifd/next'
+import React, { forwardRef, useRef } from 'react'
 import {
   registerFormField,
   ISchemaFieldComponentProps,
@@ -7,12 +6,21 @@ import {
   Schema
 } from '@uform/react-schema-renderer'
 import { toArr, isFn, isArr, FormPath } from '@uform/shared'
-import { ArrayList } from '@uform/react-shared-components'
+import { ArrayList, DragListView } from '@uform/react-shared-components'
 import { CircleButton, TextButton } from '../components/Button'
-import { Table, Form } from '@alifd/next'
+import { Table, Form, Icon } from '@alifd/next'
 import styled from 'styled-components'
-import { FormItemProps } from '../compat/FormItem'
+import { CompatNextFormItemProps } from '../compat/FormItem'
+import cls from 'classnames'
+import {
+  IDragableRowProps,
+  IDragableTableProps,
+  IDragHandlerCellProps
+} from '../types'
+
 const ArrayComponents = {
+  Wrapper: Table,
+  Item: Table.Column,
   CircleButton,
   TextButton,
   AdditionIcon: () => <Icon type="add" className="next-icon-first" />,
@@ -27,6 +35,95 @@ const ArrayComponents = {
   )
 }
 
+const DragHandlerCell = styled(
+  ({ children, ...props }: IDragHandlerCellProps) => {
+    return (
+      <div {...props}>
+        <span className="drag-handler" />
+        <span className="drag-cell-content">{children}</span>
+      </div>
+    )
+  }
+)`
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  align-content: flex-start;
+  align-items: center;
+  margin-left: -3px;
+
+  .drag-handler {
+    flex-shrink: 0;
+    width: 7px;
+    display: inline-block;
+    height: 14px;
+    border: 2px dotted #c5c5c5;
+    border-top: 0;
+    border-bottom: 0;
+    cursor: move;
+    vertical-align: -3px;
+    margin-right: 15px;
+  }
+
+  .drag-cell-content {
+    flex: 1;
+  }
+`
+
+const DragableRow = forwardRef(
+  ({ columns, ...props }: IDragableRowProps, ref) => {
+    const [firstCol, ...otherCols] = columns
+
+    return (
+      <Table.SelectionRow
+        {...props}
+        className={cls(props.className, "drag-item")}
+        ref={ref}
+        columns={[
+          {
+            ...firstCol,
+            cell: (value, index, record, context) => {
+              let content = value
+              if (firstCol.cell) {
+                content = firstCol.cell
+                if (React.isValidElement(content)) {
+                  content = React.cloneElement(content, {
+                    value,
+                    index,
+                    record,
+                    context
+                  })
+                } else if (isFn(content)) {
+                  content = content(value, index, record, context)
+                }
+              }
+              return <DragHandlerCell>{content}</DragHandlerCell>
+            }
+          },
+          ...otherCols
+        ]}
+      />
+    )
+  }
+)
+
+const DragableTable = styled(props => {
+  return (
+    <Table
+      {...props}
+      components={{
+        ...props.components,
+        Row: DragableRow
+      }}
+    />
+  )
+})`
+  &.next-table .next-table-header th:nth-child(1) .next-table-cell-wrapper {
+    padding-left: 26px;
+  }
+`
+
 const FormTableField = styled(
   (props: ISchemaFieldComponentProps & { className: string }) => {
     const { value, schema, className, editable, path, mutators } = props
@@ -37,7 +134,9 @@ const FormTableField = styled(
       renderMoveUp,
       renderEmpty,
       renderExtraOperations,
+      operationsWidth,
       operations,
+      dragable,
       ...componentProps
     } = schema.getExtendsComponentProps() || {}
     const onAdd = () => {
@@ -46,6 +145,9 @@ const FormTableField = styled(
         : schema.items
       mutators.push(items.getEmptyValue())
     }
+    const onMove = (dragIndex, dropIndex) => {
+      mutators.move(dragIndex, dropIndex)
+    }
     const renderColumns = (items: Schema) => {
       return items.mapProperties((props, key) => {
         const itemProps = {
@@ -53,22 +155,71 @@ const FormTableField = styled(
           ...props.getExtendsProps()
         }
         return (
-          <Table.Column
+          <ArrayList.Item
             width={200}
             {...itemProps}
             title={props.title}
+            key={key}
             dataIndex={key}
             cell={(value: any, index: number) => {
+              const newPath = FormPath.parse(path).concat(index, key)
               return (
-                <FormItemProps label={undefined}>
-                  <SchemaField path={FormPath.parse(path).concat(index, key)} />
-                </FormItemProps>
+                <CompatNextFormItemProps
+                  key={newPath.toString()}
+                  label={undefined}
+                >
+                  <SchemaField path={newPath} schema={props} />
+                </CompatNextFormItemProps>
               )
             }}
           />
         )
       })
-      return []
+    }
+    const renderTable = () => {
+      return (
+        <ArrayList.Wrapper
+          size="small"
+          {...componentProps}
+          dataSource={toArr(value)}
+        >
+          {isArr(schema.items)
+            ? schema.items.reduce((buf, items) => {
+                return buf.concat(renderColumns(items))
+              }, [])
+            : renderColumns(schema.items)}
+          <ArrayList.Item
+            width={operationsWidth || 200}
+            lock="right"
+            {...operations}
+            key="operations"
+            dataIndex="operations"
+            cell={(value: any, index: number) => {
+              return (
+                <Form.Item>
+                  <div className="array-item-operator">
+                    <ArrayList.Remove
+                      index={index}
+                      onClick={() => mutators.remove(index)}
+                    />
+                    <ArrayList.MoveDown
+                      index={index}
+                      onClick={() => mutators.moveDown(index)}
+                    />
+                    <ArrayList.MoveUp
+                      index={index}
+                      onClick={() => mutators.moveUp(index)}
+                    />
+                    {isFn(renderExtraOperations)
+                      ? renderExtraOperations(index)
+                      : renderExtraOperations}
+                  </div>
+                </Form.Item>
+              )
+            }}
+          />
+        </ArrayList.Wrapper>
+      )
     }
     return (
       <div className={className}>
@@ -77,7 +228,10 @@ const FormTableField = styled(
           minItems={schema.minItems}
           maxItems={schema.maxItems}
           editable={editable}
-          components={ArrayComponents}
+          components={{
+            ...ArrayComponents,
+            Wrapper: dragable ? DragableTable : ArrayComponents.Wrapper
+          }}
           renders={{
             renderAddition,
             renderRemove,
@@ -86,43 +240,11 @@ const FormTableField = styled(
             renderEmpty
           }}
         >
-          <Table {...componentProps} size="small" dataSource={toArr(value)}>
-            {isArr(schema.items)
-              ? schema.items.reduce((buf, items) => {
-                  return buf.concat(renderColumns(items))
-                }, [])
-              : renderColumns(schema.items)}
-            <Table.Column
-              width={200}
-              {...operations}
-              key="operations"
-              lock="right"
-              dataIndex="operations"
-              cell={(value: any, index: number) => {
-                return (
-                  <Form.Item>
-                    <div className="array-item-operator">
-                      <ArrayList.Remove
-                        index={index}
-                        onClick={() => mutators.remove(index)}
-                      />
-                      <ArrayList.MoveDown
-                        index={index}
-                        onClick={() => mutators.moveDown(index)}
-                      />
-                      <ArrayList.MoveUp
-                        index={index}
-                        onClick={() => mutators.moveUp(index)}
-                      />
-                      {isFn(renderExtraOperations)
-                        ? renderExtraOperations(index)
-                        : renderExtraOperations}
-                    </div>
-                  </Form.Item>
-                )
-              }}
-            />
-          </Table>
+          {dragable ? (
+            <DragListView onDragEnd={onMove}>{renderTable()}</DragListView>
+          ) : (
+            renderTable()
+          )}
           <ArrayList.Addition>
             {({ children }) => {
               return (

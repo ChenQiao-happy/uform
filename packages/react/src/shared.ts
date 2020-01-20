@@ -1,15 +1,14 @@
-import { isFn, FormPath, globalThisPolyfill, Subscribable } from '@uform/shared'
-import { IFormEffect, IFormActions, IFormAsyncActions } from './types'
+import { isFn, FormPath, Subscribable, isValid } from '@uform/shared'
+import {
+  IFormEffect,
+  IFormActions,
+  IFormAsyncActions,
+  IFieldMergeState
+} from './types'
 import { Observable } from 'rxjs/internal/Observable'
 import { filter } from 'rxjs/internal/operators/filter'
 import { createActions, createAsyncActions } from 'react-eva'
-import {
-  LifeCycleTypes,
-  IFormState,
-  FormGraph,
-  IFieldState,
-  IVirtualFieldState
-} from '@uform/core'
+import { LifeCycleTypes, IFormState, FormGraph, IFieldState } from '@uform/core'
 
 export const createFormActions = (): IFormActions => {
   if (env.currentActions) {
@@ -94,11 +93,11 @@ export const getValueFromEvent = (event: any) => {
     if (
       !isReactNative &&
       event.nativeEvent &&
-      event.nativeEvent.text !== undefined
+      isValid(event.nativeEvent.text)
     ) {
       return event.nativeEvent.text
     }
-    if (isReactNative && event.nativeEvent !== undefined) {
+    if (isReactNative && isValid(event.nativeEvent)) {
       return event.nativeEvent.text
     }
 
@@ -124,30 +123,6 @@ export const getValueFromEvent = (event: any) => {
   return event
 }
 
-const compactScheduler = ([raf, caf, priority], fresh: boolean) => {
-  return [fresh ? callback => raf(priority, callback) : raf, caf]
-}
-
-const getScheduler = () => {
-  if (!globalThisPolyfill.requestAnimationFrame) {
-    return [globalThisPolyfill.setTimeout, globalThisPolyfill.clearTimeout]
-  }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const scheduler = require('scheduler') as any
-    return compactScheduler(
-      [
-        scheduler.scheduleCallback || scheduler.unstable_scheduleCallback,
-        scheduler.cancelCallback || scheduler.unstable_cancelCallback,
-        scheduler.NormalPriority || scheduler.unstable_NormalPriority
-      ],
-      !!scheduler.unstable_requestPaint
-    )
-  } catch (err) {
-    return [self.requestAnimationFrame, self.cancelAnimationFrame]
-  }
-}
-
 export class Broadcast extends Subscribable {
   context: any
 
@@ -165,8 +140,6 @@ export const env = {
   effectEnd: false,
   currentActions: null
 }
-
-export const [raf, caf] = getScheduler()
 
 export const createFormEffects = <Payload = any, Actions = any>(
   effects: IFormEffect<Payload, Actions> | null,
@@ -188,8 +161,9 @@ export const createFormEffects = <Payload = any, Actions = any>(
               isFn(matcher) && !matcher['path']
                 ? matcher
                 : (payload: T): boolean => {
-                    return FormPath.parse(matcher as any).match(
-                      payload && (payload as any).name
+                    return FormPath.parse(matcher as any).matchAliasGroup(
+                      payload && (payload as any).name,
+                      payload && (payload as any).path
                     )
                   }
             )
@@ -222,8 +196,6 @@ export const createEffectHook = <TResult, Props extends Array<any> = any[]>(
   return env.effectSelector(type, ...args)
 }
 
-type FieldMergeState = Partial<IFieldState> & Partial<IVirtualFieldState>
-
 export const FormEffectHooks = {
   onFormWillInit$: createEffectHook<IFormState>(
     LifeCycleTypes.ON_FORM_WILL_INIT
@@ -237,6 +209,17 @@ export const FormEffectHooks = {
     LifeCycleTypes.ON_FORM_INITIAL_VALUES_CHANGE
   ),
   onFormReset$: createEffectHook<IFormState>(LifeCycleTypes.ON_FORM_RESET),
+
+  onFormSubmitValidateStart$: createEffectHook<IFormState>(
+    LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_START
+  ),
+  onFormSubmitValidateSuccess$: createEffectHook<IFormState>(
+    LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_SUCCESS
+  ),
+  onFormSubmitValidateFailed$: createEffectHook<IFormState>(
+    LifeCycleTypes.ON_FORM_SUBMIT_VALIDATE_FAILED
+  ),
+
   onFormSubmit$: createEffectHook<IFormState>(LifeCycleTypes.ON_FORM_SUBMIT),
   onFormSubmitStart$: createEffectHook<IFormState>(
     LifeCycleTypes.ON_FORM_SUBMIT_START
@@ -260,17 +243,25 @@ export const FormEffectHooks = {
     LifeCycleTypes.ON_FORM_GRAPH_CHANGE
   ),
 
-  onFieldWillInit$: createEffectHook<FieldMergeState>(
+  onFieldWillInit$: createEffectHook<IFieldMergeState>(
     LifeCycleTypes.ON_FIELD_WILL_INIT
   ),
-  onFieldInit$: createEffectHook<FieldMergeState>(LifeCycleTypes.ON_FIELD_INIT),
-  onFieldChange$: createEffectHook<FieldMergeState>(
+  onFieldInit$: createEffectHook<IFieldMergeState>(
+    LifeCycleTypes.ON_FIELD_INIT
+  ),
+  onFieldValidateStart$: createEffectHook<IFieldMergeState>(
+    LifeCycleTypes.ON_FIELD_VALIDATE_START
+  ),
+  onFieldValidateEnd$: createEffectHook<IFieldMergeState>(
+    LifeCycleTypes.ON_FIELD_VALIDATE_END
+  ),
+  onFieldChange$: createEffectHook<IFieldMergeState>(
     LifeCycleTypes.ON_FIELD_CHANGE
   ),
-  onFieldMount$: createEffectHook<FieldMergeState>(
+  onFieldMount$: createEffectHook<IFieldMergeState>(
     LifeCycleTypes.ON_FIELD_MOUNT
   ),
-  onFieldUnmount$: createEffectHook<FieldMergeState>(
+  onFieldUnmount$: createEffectHook<IFieldMergeState>(
     LifeCycleTypes.ON_FIELD_UNMOUNT
   ),
   onFieldInputChange$: createEffectHook<IFieldState>(

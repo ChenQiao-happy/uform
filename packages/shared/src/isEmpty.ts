@@ -1,8 +1,9 @@
+import { instOf } from './instanceof'
 const has = Object.prototype.hasOwnProperty
 
 const toString = Object.prototype.toString
 
-export const isValid = (val: any) => val !== undefined
+export const isValid = (val: any) => val !== undefined && val !== null
 
 export function isEmpty(val: any): boolean {
   // Null and Undefined...
@@ -49,7 +50,7 @@ export function isEmpty(val: any): boolean {
   }
 
   // Errors...
-  if (val instanceof Error) {
+  if (instOf(val, 'Error')) {
     return val.message === ''
   }
 

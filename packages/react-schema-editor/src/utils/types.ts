@@ -5,7 +5,7 @@ export interface ISchemaCodeProps {
 
 export interface ISchemaTreeProps {
   schema: any
-  components: any
+  onSelect?: Function
   onChange?: Function
 }
 
@@ -19,6 +19,12 @@ export interface IFieldEditorProps {
 
 export interface ISchemaPreviewProps {
   schema: object
+}
+
+export enum ComponentTypes {
+  ANTD = 'antd',
+  FUSION = 'fusion',
+  CUSTOM = 'custom'
 }
 
 export enum InputTypes {

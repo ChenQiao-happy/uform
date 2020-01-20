@@ -7,12 +7,14 @@ import {
   IFormProps,
   IForm,
   IFormActions,
-  IFormAsyncActions
+  IFormAsyncActions,
+  IFormEffect
 } from '@uform/react'
 import { ValidatePatternRules } from '@uform/validator'
 import { Schema } from './shared/schema'
 export interface ISchemaFieldProps {
   path?: FormPathPattern
+  schema?: Schema
 }
 
 export type ComponentWithStyleComponent<
@@ -59,6 +61,11 @@ export type ISchemaVirtualFieldComponent = ComponentWithStyleComponent<
   __WRAPPERS__?: ISchemaFieldWrapper[]
 }
 
+export type ISchemaLinkageHandler = (
+  spec: any,
+  context: any
+) => IFormEffect<any, ISchemaFormActions>
+
 export interface ISchemaFormRegistry {
   fields: {
     [key: string]: ISchemaFieldComponent
@@ -81,7 +88,12 @@ export interface ISchema {
   readOnly?: boolean
   writeOnly?: boolean
   type?: 'string' | 'object' | 'array' | 'number' | string
-  enum?: Array<string | number | { label: SchemaMessage; value: any }>
+  enum?: Array<
+    | string
+    | number
+    | { label: SchemaMessage; value: any; [key: string]: any }
+    | { key: any; title: SchemaMessage; [key: string]: any }
+  >
   const?: any
   multipleOf?: number
   maximum?: number
@@ -115,6 +127,13 @@ export interface ISchema {
   ['x-props']?: { [name: string]: any }
   ['x-index']?: number
   ['x-rules']?: ValidatePatternRules
+  ['x-linkages']?: Array<{
+    name: FormPathPattern
+    target: FormPathPattern
+    type: string
+    [key: string]: any
+  }>
+  ['x-item-props']?: { [name: string]: any }
   ['x-component']?: string
   ['x-component-props']?: { [name: string]: any }
   ['x-render']?: <T = ISchemaFieldComponentProps>(
@@ -139,6 +158,7 @@ export interface ISchemaFormProps<
   virtualFields?: ISchemaFormRegistry['virtualFields']
   formComponent?: ISchemaFormRegistry['formComponent']
   formItemComponent?: ISchemaFormRegistry['formItemComponent']
+  expressionScope?: { [key: string]: any }
 }
 
 export interface IMarkupSchemaFieldProps extends ISchema {

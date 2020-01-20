@@ -62,6 +62,7 @@ const computeSchemaExtendProps = (
         ...props.schema.getExtendsItemProps(),
         ...props.schema.getExtendsProps()
       },
+      'required',
       'className',
       'prefix',
       'labelAlign',
@@ -75,7 +76,7 @@ const computeSchemaExtendProps = (
 
 const FormItemPropsContext = createContext({})
 
-export const FormItemProps = ({ children, ...props }) => (
+export const CompatNextFormItemProps = ({ children, ...props }) => (
   <FormItemPropsContext.Provider value={props}>
     {children}
   </FormItemPropsContext.Provider>
@@ -85,9 +86,9 @@ export const CompatNextFormItem: React.FC<ICompatItemProps> = props => {
   const {
     prefix,
     labelAlign,
-    labelCol,
     labelTextAlign,
-    wrapperCol,
+    labelCol: contextLabelCol,
+    wrapperCol: contextWrapperCol,
     size
   } = useFormItem()
   const formItemProps = useContext(FormItemPropsContext)
@@ -96,23 +97,30 @@ export const CompatNextFormItem: React.FC<ICompatItemProps> = props => {
   const status = computeStatus(props)
   const extra = computeExtra(props)
   const itemProps = computeSchemaExtendProps(props)
+
+  const mergedProps = {
+    ...itemProps,
+    ...formItemProps,
+  }
+
+  const { labelCol, wrapperCol } = mergedProps
+
   return (
     <Form.Item
       prefix={prefix}
       label={label}
-      labelTextAlign={labelTextAlign}
-      labelCol={label ? normalizeCol(labelCol) : undefined}
+      labelTextAlign={labelTextAlign}      
       labelAlign={labelAlign || 'left'}
-      required={props.required}
-      wrapperCol={label ? normalizeCol(wrapperCol) : undefined}
+      required={props.required}      
       size={size}
       help={help}
       validateState={status}
       extra={<p>{extra}</p>}
-      {...itemProps}
-      {...formItemProps}
+      {...mergedProps}
+      labelCol={label ? normalizeCol(labelCol || contextLabelCol) : undefined}
+      wrapperCol={label ? normalizeCol(wrapperCol || contextWrapperCol) : undefined}
     >
-      <FormItemProps>{props.children}</FormItemProps>
+      <CompatNextFormItemProps>{props.children}</CompatNextFormItemProps>
     </Form.Item>
   )
 }

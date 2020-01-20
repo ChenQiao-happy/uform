@@ -10,6 +10,7 @@ export const FieldState = createStateModel<IFieldState, IFieldStateProps>(
     static defaultState = {
       name: '',
       path: '',
+      dataType: 'any',
       initialized: false,
       pristine: true,
       valid: true,
@@ -42,7 +43,8 @@ export const FieldState = createStateModel<IFieldState, IFieldStateProps>(
     }
 
     static defaultProps = {
-      path: ''
+      path: '',
+      dataType: 'any'
     }
 
     private state: IFieldState
@@ -57,6 +59,7 @@ export const FieldState = createStateModel<IFieldState, IFieldStateProps>(
       this.dataPath = FormPath.getPath(props.dataPath)
       this.state.name = this.dataPath.entire
       this.state.path = this.nodePath.entire
+      this.state.dataType = props.dataType || 'any'
     }
 
     readValues({ value, values }: IFieldStateProps) {
@@ -68,15 +71,23 @@ export const FieldState = createStateModel<IFieldState, IFieldStateProps>(
           values = toArr(value)
         }
       }
+
+      values = toArr(values)
+
+      if(/array/ig.test(this.state.dataType)){
+        value = toArr(value)
+        values[0] = toArr(values[0])
+      }
+
       return {
         value,
-        values: toArr(values)
+        values
       }
     }
 
     readRequired(rules: any[]) {
       for (let i = 0; i < rules.length; i++) {
-        if (rules[i].required !== undefined) {
+        if (isValid(rules[i].required)) {
           return rules[i].required
         }
       }
@@ -90,8 +101,8 @@ export const FieldState = createStateModel<IFieldState, IFieldStateProps>(
           } else {
             rules = rules.reduce((buf: any[], item: any) => {
               const keys = Object.keys(item || {})
-              if (item.required !== undefined) {
-                if (item.message !== undefined) {
+              if (isValid(item.required)) {
+                if (isValid(item.message)) {
                   if (keys.length > 2) {
                     return buf.concat({
                       ...item,
@@ -194,11 +205,11 @@ export const FieldState = createStateModel<IFieldState, IFieldStateProps>(
       if (
         draft.initialized &&
         prevState.initialized &&
-        !isEqual(draft.value, prevState.value)
+        !isEqual(prevState.value, draft.value)
       ) {
         draft.modified = true
       }
-      if (isEqual(draft.value, draft.initialValue)) {
+      if (isEqual(draft.initialValue, draft.value)) {
         draft.pristine = true
       } else {
         draft.pristine = false

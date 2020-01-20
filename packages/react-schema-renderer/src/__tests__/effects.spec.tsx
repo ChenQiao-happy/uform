@@ -201,9 +201,11 @@ test('getFieldState with onFieldChange', async () => {
 
 test('set errors in effects', async () => {
   const callback = jest.fn()
+  const actions = createFormActions()
   const TestComponent = () => {
     return (
       <SchemaForm
+        actions={actions}
         effects={($, { setFieldState }) => {
           $('onFormInit').subscribe(() => {
             setFieldState('aaa', state => {

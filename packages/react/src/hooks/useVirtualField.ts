@@ -1,7 +1,10 @@
 import { useMemo, useEffect, useRef, useContext } from 'react'
-import { each } from '@uform/shared'
-import { IVirtualFieldStateProps, IVirtualFieldState, IForm } from '@uform/core'
-import { useDirty } from './useDirty'
+import {
+  IVirtualFieldStateProps,
+  IVirtualFieldState,
+  IForm,
+  IVirtualField
+} from '@uform/core'
 import { useForceUpdate } from './useForceUpdate'
 import { IVirtualFieldHook } from '../types'
 import FormContext from '../context'
@@ -10,10 +13,15 @@ export const useVirtualField = (
   options: IVirtualFieldStateProps
 ): IVirtualFieldHook => {
   const forceUpdate = useForceUpdate()
-  const dirty = useDirty(options, ['props'])
-  const ref = useRef<any>({
+  //const dirty = useDirty(options, ['props', 'visible', 'display'])
+  const ref = useRef<{
+    field: IVirtualField
+    unmounted: boolean
+    subscriberId: number
+  }>({
     field: null,
-    unmounted: false
+    unmounted: false,
+    subscriberId: null
   })
   const form = useContext<IForm>(FormContext)
   if (!form) {
@@ -22,7 +30,7 @@ export const useVirtualField = (
   useMemo(() => {
     let initialized = false
     ref.current.field = form.registerVirtualField(options)
-    ref.current.field.subscribe(() => {
+    ref.current.subscriberId = ref.current.field.subscribe(() => {
       if (ref.current.unmounted) return
       /**
        * 同步Field状态只需要forceUpdate一下触发重新渲染，因为字段状态全部代理在uform core内部
@@ -35,32 +43,34 @@ export const useVirtualField = (
   }, [])
 
   useEffect(() => {
-    if (dirty.num > 0) {
-      ref.current.field.setState((state: IVirtualFieldState) => {
-        each(dirty.dirtys, (result, key) => {
-          if (result) {
-            state[key] = options[key]
-          }
+    //考虑到组件被unmount，props diff信息会被销毁，导致diff异常，所以需要代理在一个持久引用上
+    ref.current.field.watchProps(
+      options,
+      ['props', 'visible', 'display'],
+      (props: any) => {
+        ref.current.field.setState((state: IVirtualFieldState) => {
+          Object.assign(state, props)
         })
-      })
-    }
+      }
+    )
   })
 
   useEffect(() => {
     ref.current.field.setState(state => {
       state.mounted = true
-    }, true)
+    }, !ref.current.field.state.unmounted) //must notify,need to trigger restore value
     ref.current.unmounted = false
     return () => {
       ref.current.unmounted = true
-      ref.current.field.unsubscribe()
+      ref.current.field.unsubscribe(ref.current.subscriberId)
       ref.current.field.setState((state: IVirtualFieldState) => {
         state.unmounted = true
-      })//must notify,need to trigger remove value
+      }) //must notify,need to trigger remove value
     }
   }, [])
 
   const state = ref.current.field.getState()
+
   return {
     state,
     field: ref.current.field,

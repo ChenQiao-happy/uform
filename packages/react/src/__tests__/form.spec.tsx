@@ -1,12 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Form,
   Field,
   createFormActions,
   FormEffectHooks,
-  IFieldStateUIProps
+  IFieldStateUIProps,
+  FormSpy,
 } from '../index'
-import { render } from '@testing-library/react'
+import { render, fireEvent, waitForElement } from '@testing-library/react'
+import { LifeCycleTypes } from '@uform/core'
 
 const Input: React.FC<IFieldStateUIProps> = props => (
   <Field {...props}>
@@ -52,13 +54,85 @@ describe('test all apis', () => {
     try {
       await actions.submit()
     } catch (e) {
-      expect(e).toEqual([{ path: 'aaa', messages: ['This field is required'] }])
+      expect(e).toEqual([{ path: 'aaa', name: 'aaa', messages: ['This field is required'] }])
     }
     actions.setFieldState('aaa', state => {
       state.value = '123'
     })
     await actions.submit()
     expect(onSubmitHandler).toBeCalledWith({ aaa: 'hello world' })
+  })
+
+  test('onSubmit async', async () => {
+    const actions = createFormActions()
+    const onSubmitEndHandler = jest.fn()
+    const App = () => {
+      return <div>
+        <Form
+        onSubmit={() => {
+          return new Promise((resolve) => {
+            setTimeout(resolve)
+          })
+        }}
+        actions={actions}
+      >
+        <Input name="aaa" />        
+        <FormSpy>
+          {({ type }) => {
+            return <button data-testid="submit" onClick={() => {
+              actions.submit()
+            }}>{type}</button>
+          }}
+        </FormSpy>
+      </Form>
+      </div>
+    }
+    const { getByTestId, queryByTestId } = render(<App />)
+        
+    expect(onSubmitEndHandler).toBeCalledTimes(0)
+    fireEvent.click(queryByTestId('submit'))
+    const submitEle = await waitForElement(
+      () => getByTestId('submit')
+    )
+
+    expect(submitEle.textContent).not.toEqual(LifeCycleTypes.ON_FORM_INIT)
+  })
+
+  test('onSubmit unmount promise', async () => {
+    const actions = createFormActions()
+    const onSubmitEndHandler = jest.fn()
+    const App = () => {
+      const [visible, setVisible] = useState(true)
+      return <div>
+        {visible ? <Form
+        onSubmit={() => {
+          return new Promise((resolve) => {
+            setVisible(false)
+            setTimeout(resolve)
+          })
+        }}
+        actions={actions}
+      >
+        <Input name="aaa" />        
+        <FormSpy>
+          {({ type }) => {
+            return <button data-testid="submit" onClick={() => {
+              actions.submit()
+            }}>{type}</button>
+          }}
+        </FormSpy>
+      </Form> : null }
+      </div>
+    }
+    const { getByTestId, queryByTestId } = render(<App />)
+        
+    expect(onSubmitEndHandler).toBeCalledTimes(0)
+    fireEvent.click(queryByTestId('submit'))
+    const submitEle = await waitForElement(
+      () => getByTestId('submit')
+    )
+
+    expect(submitEle.textContent).toEqual(LifeCycleTypes.ON_FORM_INIT)
   })
 })
 
